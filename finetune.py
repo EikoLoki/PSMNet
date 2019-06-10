@@ -28,7 +28,7 @@ parser.add_argument('--model', default='stackhourglass',
                     help='select model')
 parser.add_argument('--datatype', default='2015',
                     help='datapath')
-parser.add_argument('--datapath', default='/media/jiaren/ImageNet/data_scene_flow_2015/training/',
+parser.add_argument('--datapath', default='/media//media/xiran_zhang/Crypto/KITTI/2015/training/',
                     help='datapath')
 parser.add_argument('--epochs', type=int, default=300,
                     help='number of epochs to train')
