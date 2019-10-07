@@ -23,10 +23,11 @@ def default_loader(path):
     return Image.open(path).convert('RGB')
 
 def disparity_loader(path):
-    # print(path)
+
     img = rp.readPFM(path)
-    plt.imshow(img)
-    plt.show()
+    # print(path)
+    # plt.imshow(img[0])
+    # plt.show()
     return img
 
 

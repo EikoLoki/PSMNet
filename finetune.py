@@ -10,9 +10,9 @@ import torch.optim as optim
 import torch.utils.data
 from torch.autograd import Variable
 import torch.nn.functional as F
-import skimage
-import skimage.io
-import skimage.transform
+#import skimage
+#import skimage.io
+#import skimage.transform
 import numpy as np
 import time
 import math
@@ -28,8 +28,8 @@ parser.add_argument('--model', default='stackhourglass',
                     help='select model')
 parser.add_argument('--datatype', default='2015',
                     help='datapath')
-parser.add_argument('--datapath', default='/media//media/xiran_zhang/Crypto/KITTI/2015/training/',
-                    help='datapath')
+parser.add_argument('--datapath', default='/media/xiran_zhang/Crypto/KITTI/2015/training/',
+                    help='datatype')
 parser.add_argument('--epochs', type=int, default=300,
                     help='number of epochs to train')
 parser.add_argument('--loadmodel', default='./trained/submission_model.tar',
@@ -103,8 +103,8 @@ def train(imgL,imgR,disp_L):
             output3 = torch.squeeze(output3,1)
             loss = 0.5*F.smooth_l1_loss(output1[mask], disp_true[mask], size_average=True) + 0.7*F.smooth_l1_loss(output2[mask], disp_true[mask], size_average=True) + F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True) 
         elif args.model == 'basic':
-            output = model(imgL,imgR)
-            output = torch.squeeze(output3,1)
+            output3 = model(imgL,imgR)
+            output3 = torch.squeeze(output3,1)
             loss = F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True)
 
         loss.backward()
@@ -144,41 +144,39 @@ def adjust_learning_rate(optimizer, epoch):
 
 
 def main():
-	max_acc=0
-	max_epo=0
-	start_full_time = time.time()
+    max_acc=0
+    max_epo=0
+    start_full_time = time.time()
 
-	for epoch in range(1, args.epochs+1):
-	   total_train_loss = 0
-	   total_test_loss = 0
-	   adjust_learning_rate(optimizer,epoch)
+    for epoch in range(1, args.epochs+1):
+        total_train_loss = 0
+        total_test_loss = 0
+        adjust_learning_rate(optimizer,epoch)
            
-               ## training ##
-           for batch_idx, (imgL_crop, imgR_crop, disp_crop_L) in enumerate(TrainImgLoader):
-               start_time = time.time() 
+       ## training ##
+        for batch_idx, (imgL_crop, imgR_crop, disp_crop_L) in enumerate(TrainImgLoader):
+           start_time = time.time()
 
-               loss = train(imgL_crop,imgR_crop, disp_crop_L)
-	       print('Iter %d training loss = %.3f , time = %.2f' %(batch_idx, loss, time.time() - start_time))
-	       total_train_loss += loss
-	   print('epoch %d total training loss = %.3f' %(epoch, total_train_loss/len(TrainImgLoader)))
-	   
-               ## Test ##
+           loss = train(imgL_crop,imgR_crop, disp_crop_L)
+           print('Iter %d training loss = %.3f , time = %.2f' %(batch_idx, loss, time.time() - start_time))
+           total_train_loss += loss
+        print('epoch %d total training loss = %.3f' %(epoch, total_train_loss/len(TrainImgLoader)))
 
-           for batch_idx, (imgL, imgR, disp_L) in enumerate(TestImgLoader):
-               test_loss = test(imgL,imgR, disp_L)
-               print('Iter %d 3-px error in val = %.3f' %(batch_idx, test_loss*100))
-               total_test_loss += test_loss
+        ## Test ##
+        for batch_idx, (imgL, imgR, disp_L) in enumerate(TestImgLoader):
+            test_loss = test(imgL,imgR, disp_L)
+            print('Iter %d 3-px error in val = %.3f' %(batch_idx, test_loss*100))
+            total_test_loss += test_loss
 
+        print('epoch %d total 3-px error in val = %.3f' %(epoch, total_test_loss/len(TestImgLoader)*100))
+        if total_test_loss/len(TestImgLoader)*100 > max_acc:
+            max_acc = total_test_loss/len(TestImgLoader)*100
+            max_epo = epoch
+            print('MAX epoch %d total test error = %.3f' %(max_epo, max_acc))
 
-	   print('epoch %d total 3-px error in val = %.3f' %(epoch, total_test_loss/len(TestImgLoader)*100))
-	   if total_test_loss/len(TestImgLoader)*100 > max_acc:
-		max_acc = total_test_loss/len(TestImgLoader)*100
-		max_epo = epoch
-	   print('MAX epoch %d total test error = %.3f' %(max_epo, max_acc))
-
-	   #SAVE
-	   savefilename = args.savemodel+'finetune_'+str(epoch)+'.tar'
-	   torch.save({
+        #SAVE
+        savefilename = args.savemodel+'finetune_'+str(epoch)+'.tar'
+        torch.save({
 		    'epoch': epoch,
 		    'state_dict': model.state_dict(),
 		    'train_loss': total_train_loss/len(TrainImgLoader),
