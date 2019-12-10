@@ -32,7 +32,7 @@ parser.add_argument('--datapath', default='/media/xiran_zhang/Crypto/MICCAI')
 # we should modify epochs to get the best performance, experiments needed here
 parser.add_argument('--epochs', type=int, default=100,
                     help='number of epochs to train')
-parser.add_argument('--loadmodel', default='./finetune_MICCAI/finetune_max256_44.tar',
+parser.add_argument('--loadmodel', default='./finetuned_MICCAI/finetune_max256_44.tar',
                     help='load model')
 parser.add_argument('--savemodel', default='./finetune_MICCAI/',
                     help='save model')
@@ -123,6 +123,7 @@ def train(imgL, imgR, disp_L):
         loss = F.smooth_l1_loss(output3[mask], disp_true[mask], size_average=True)
 
     loss.backward()
+
     optimizer.step()
 
     return loss.data.item()
@@ -208,6 +209,46 @@ def adjust_learning_rate(optimizer, epoch):
 
 
 
+def evaluation():
+    for batch_idx, (left, right, imgL_up, imgR_up, imgL_mid, imgR_mid, imgL_bot, imgR_bot) in enumerate(TestImgLoader):
+        predicted_up = test(imgL_up, imgR_up)
+        predicted_mid = test(imgL_mid, imgR_mid)
+        predicted_bot = test(imgL_bot, imgR_bot)
+
+        result_up = predicted_up[0]
+        result_mid = predicted_mid[0]
+        result_bot = predicted_bot[0]
+
+        result = np.zeros((1024, 1280))
+        result[0:384,:] = result_up[0:384,:]
+        result[384:640,:] = result_mid[128:384,:]
+        result[640:1024,:] = result_bot[128:512,:]
+
+
+        file_name= left[0].split('/')[-1].split('.')[0]
+
+        fig = plt.figure(figsize=(12.8, 10.24))  # Your image (W)idth and (H)eight in inches
+        # Stretch image to full figure, removing "grey region"
+        plt.subplots_adjust(left=0.05, right=0.9, top=0.95, bottom=0.05)
+        im = plt.imshow(result,vmin=0, vmax=256)  # Show the image
+        pos = fig.add_axes([0.93, 0.1, 0.02, 0.8])  # Set colorbar position in fig
+        fig.colorbar(im, cax=pos)  # Create the colorbar
+        plt.show()
+
+        disparity = result
+        path_dir = left[0].split('left_finalpass')[0].split('Crypto')[-1]
+        save_path = '/media/xiran_zhang/2011_HDD7' + path_dir+ 'disparity/' + file_name + '.ext'
+        print(save_path)
+        fs = cv2.FileStorage(save_path, flags=1)
+        print(disparity.shape)
+        fs.write(name='disp', val = disparity.astype(np.float32))
+        fs.release()
+
+
+
+
+
+
 def main():
     # max_acc = 100
     # max_epo = 100
@@ -220,7 +261,7 @@ def main():
 
     start_full_time = time.time()
 
-    training = 0
+    training = 1
 
 
     if(training == 1):
@@ -234,19 +275,19 @@ def main():
             total_test_loss = 0
             adjust_learning_rate(optimizer, epoch)
 
-            # # Train
-            # mal_train_count = 0
-            # for batch_idx, (imgL_crop, imgR_crop, dispL_crop) in enumerate(TrainImgLoader):
-            #     start_time = time.time()
-            #
-            #     loss = train(imgL_crop, imgR_crop, dispL_crop)
-            #
-            #     print('Iter %d training loss = %.3f, time =  %.2f' %(batch_idx, loss, time.time() - start_time))
-            #     if(loss < 1000):
-            #         total_train_loss += loss
-            #     else:
-            #         mal_train_count += 1
-            # print('epoch %d totoal training loss = %.3f'  %(epoch, total_train_loss / (len(TrainImgLoader) - mal_train_count)))
+            # Train
+            mal_train_count = 0
+            for batch_idx, (imgL_crop, imgR_crop, dispL_crop) in enumerate(TrainImgLoader):
+                start_time = time.time()
+
+                loss = train(imgL_crop, imgR_crop, dispL_crop)
+
+                print('Iter %d training loss = %.3f, time =  %.2f' %(batch_idx, loss, time.time() - start_time))
+                if(loss < 1000):
+                    total_train_loss += loss
+                else:
+                    mal_train_count += 1
+            print('epoch %d totoal training loss = %.3f'  %(epoch, total_train_loss / (len(TrainImgLoader) - mal_train_count)))
 
             # Test
             mal_test_count = 0
@@ -328,4 +369,5 @@ def main():
     print('max acc:', max_acc)
 
 if __name__ == '__main__':
-    main()
+    # main()
+    evaluation()
